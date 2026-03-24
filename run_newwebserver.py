@@ -1,13 +1,13 @@
 import subprocess
 import time
 import webbrowser
-
 import boto3
 from botocore.exceptions import ClientError
 import logging
 
 ec2 = boto3.resource('ec2')
 s3 = boto3.client('s3')
+s3_resource = boto3.resource('s3')
 
 def create_bucket(bucket_name, region='us-east-1'):
     try:
@@ -34,6 +34,19 @@ def html_script(instance_id, availability_zone):
     </body>
     </html>
     """
+
+def cleanup_function(ec2_instance_object, s3_object):
+
+    print("Initiating clean up")
+
+    ec2_instance_object.terminate()
+    ec2_instance_object.wait_until_terminated()
+
+    s3_object.objects.all().delete()
+    s3_object.delete()
+
+    print("cleanup function ran successfully, ec2 instances and buckets were deleted :)")
+
 
 instance_list = []
 
@@ -116,3 +129,15 @@ webbrowser.open(website_url)
 
 
 print(f"Instance public_ip: {mainInstance.public_ip_address}")
+
+print("\n====================================================================================================================================================================================")
+print(f"the web server is currently running. You can view it in your browser or at this url: {website_url}.")
+print("when you are finished, type 'cleanup' and press Enter to delete the ec2 and s3 resources.")
+print("\n====================================================================================================================================================================================")
+
+user_input = input("\ntype 'cleanup' to terminate or any other key to leave running: ")
+
+if user_input.strip().lower() == 'cleanup':
+    cleanup_function(mainInstance, s3_resource.Bucket(bucket_name))
+else:
+    print("exiting: the ec2 instance and s3 bucket were left running.")
